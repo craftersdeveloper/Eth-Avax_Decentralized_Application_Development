@@ -4,16 +4,6 @@ This project consists of a smart contract named `Assessment` written in Solidity
 
 ## Smart Contract
 
-### Contract: `Assessment`
-
-The `Assessment` contract allows for the following operations:
-
-- **Deposit:** The owner can deposit funds into the contract.
-- **Withdraw:** The owner can withdraw funds from the contract.
-- **Lock Tokens:** Users can lock a specific amount of tokens within the contract.
-- **Unlock Tokens:** Users can unlock previously locked tokens.
-- **Ownership Transfer:** The contract owner can transfer ownership to another address.
-
 ### Contract Explanation
 
 ```solidity
@@ -23,16 +13,27 @@ pragma solidity ^0.8.9;
 
 contract Assessment {
 
+    // State Variable
+
     address payable public owner;
     uint256 public balance;
-    
-    mapping(address => uint256) public lockedTokens;
 
+    // File Info Struct
+
+    struct File {
+        string name;
+        uint256 size;
+    }
+    
+    mapping(address => File[]) public files;
+    
+    // events 
+    
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    event TokensLocked(address indexed to, uint256 amount);
-    event TokensUnlocked(address indexed to, uint256 amount);
+    event FileAdded(address indexed owner, string name, uint256 size);
+    event FileRemoved(address indexed owner, string name);
 
     constructor(uint256 initBalance) {
         owner = payable(msg.sender);
@@ -60,12 +61,7 @@ contract Assessment {
         emit Withdraw(_withdrawAmount);
     }
 
-    function isOwner(address _address) public view returns (bool) {
-        return _address == owner;
-    }
-
     function transferOwnership(address payable _newOwner) public {
-    
         require(msg.sender == owner, "not owner of this contract");
         require(_newOwner != address(0), "Invalid new owner address");
         address payable _previousOwner = owner;
@@ -73,62 +69,71 @@ contract Assessment {
         emit OwnershipTransferred(_previousOwner, _newOwner);
     }
 
-    function lockTokens(uint256 _amount) public {
-        require(balance >= _amount, "Payment Failed (Due To Low Balance)");
-        lockedTokens[msg.sender] += _amount;
-        balance -= _amount;
-        emit TokensLocked(msg.sender, _amount);
+    // File management functions
+
+    function addFile(string memory _name, uint256 _size) public {
+        File memory newFile = File(_name, _size);
+        files[msg.sender].push(newFile);
+        emit FileAdded(msg.sender, _name, _size);
     }
 
-    function unlockTokens(uint256 _amount) public {
-        require(lockedTokens[msg.sender] >= _amount, "Payment Failed (Due To Low Balance)");
-        lockedTokens[msg.sender] -= _amount;
-        balance += _amount;
-        emit TokensUnlocked(msg.sender, _amount);
+    function removeFile(uint256 index) public {
+        require(index < files[msg.sender].length, "Invalid file index");
+        File memory file = files[msg.sender][index];
+        for (uint256 i = index; i < files[msg.sender].length - 1; i++) {
+            files[msg.sender][i] = files[msg.sender][i + 1];
+        }
+        files[msg.sender].pop();
+        emit FileRemoved(msg.sender, file.name);
+    }
+
+    function getFiles() public view returns (File[] memory) {
+        return files[msg.sender];
     }
 }
 ```
+1. **State Variables**:
+   - `owner`: A payable address representing the owner of the contract.
+   - `balance`: An unsigned integer representing the contract's balance.
 
-- **Owner:** The address that deployed the contract is initially set as the owner.
-- **Balance:** The total amount of funds stored in the contract.
-- **Locked Tokens:** A mapping that tracks the amount of tokens locked by each address.
+2. **File Struct**:
+   - Defines a `File` structure with two properties: `name` (a string representing the file name) and `size` (an unsigned integer representing the file size).
 
-**Contract Events**
+3. **Mappings**:
+   - `files`: A mapping that associates each address with an array of `File` structs. This stores files uploaded by different users.
 
-- **Deposit:** Emitted when funds are deposited.
-- **Withdraw:** Emitted when funds are withdrawn.
-- **OwnershipTransferred:** Emitted when ownership is transferred.
-- **TokensLocked:** Emitted when tokens are locked.
-- **TokensUnlocked:** Emitted when tokens are unlocked.
+4. **Events**:
+   - `Deposit`: Emitted when funds are deposited into the contract.
+   - `Withdraw`: Emitted when funds are withdrawn from the contract.
+   - `OwnershipTransferred`: Emitted when the ownership of the contract is transferred from the current owner to a new owner.
+   - `FileAdded`: Emitted when a file is added by a user.
+   - `FileRemoved`: Emitted when a file is removed by a user.
 
-**Contract Functions**
+### Constructor
 
-- `getBalance()`: Returns the contract's current balance.
-- `deposit(uint256 _amount)`: Allows the owner to deposit `_amount` of funds into the contract.
-- `withdraw(uint256 _withdrawAmount)`: Allows the owner to withdraw `_withdrawAmount` of funds.
-- `isOwner(address _address)`: Checks if the provided address is the owner of the contract.
-- `transferOwnership(address payable _newOwner)`: Transfers ownership to `_newOwner`.
-- `lockTokens(uint256 _amount)`: Allows a user to lock `_amount` of tokens.
-- `unlockTokens(uint256 _amount)`: Allows a user to unlock `_amount` of tokens.
+- `constructor(uint256 initBalance)`: Initializes the contract by setting the `owner` to the deployer (`msg.sender`) and setting the initial `balance` to `initBalance`.
 
-**Error Handling**
+### Functions
 
-- **InsufficientBalance:** Raised when a withdrawal is attempted with insufficient funds.
+1. **Balance Management**:
+   - `getBalance()`: Returns the current balance of the contract.
+   - `deposit(uint256 _amount)`: Allows the owner to deposit a specified `_amount` to the contract. The sender must be the owner; otherwise, the transaction fails.
+   - `withdraw(uint256 _withdrawAmount)`: Allows the owner to withdraw a specified `_withdrawAmount` from the contract. If the balance is insufficient, it reverts with an error.
 
-## Frontend Interface
+2. **Ownership Management**:
+   - `transferOwnership(address payable _newOwner)`: Allows the current owner to transfer ownership to a new address. The new owner's address must not be a zero address.
 
-The frontend interface is built with React.js and interacts with the `Assessment` smart contract using the `ethers.js` library.
+3. **File Management**:
+   - `addFile(string memory _name, uint256 _size)`: Allows any user to add a file to their own file list. The file's name and size are specified, and an event is emitted upon addition.
+   - `removeFile(uint256 index)`: Allows a user to remove a file from their file list by specifying its index. The function ensures the index is valid and emits an event upon removal.
+   - `getFiles()`: Returns an array of files associated with the caller's address.
 
-### Features
+### Usage Summary
 
-- **Connect Wallet:** Allows users to connect their Ethereum wallet (e.g., MetaMask).
-- **Display Balance:** Shows the current balance of the contract.
-- **Ownership Management:** Allows the owner to transfer ownership to another address.
-- **Deposit Funds:** Allows the owner to deposit 1 ETH into the contract.
-- **Withdraw Funds:** Allows the owner to withdraw 1 ETH from the contract.
-- **Lock Tokens:** Allows users to lock a specified amount of tokens.
-- **Unlock Tokens:** Allows users to unlock previously locked tokens.
-
+- The contract manages funds for the owner, allowing them to deposit, withdraw, and transfer ownership.
+- It also provides a decentralized file management system where users can add or remove files, and retrieve their file list.
+- Events are emitted for key actions, allowing for transparency and easier tracking of changes on the blockchain.
+  
 ### Usage
 
 1. **Connect Wallet:**
@@ -143,11 +148,11 @@ The frontend interface is built with React.js and interacts with the `Assessment
 4. **Transfer Ownership:**
    - Enter the new owner's address and click "Change Owner" to transfer ownership.
 
-5. **Lock Tokens:**
-   - Enter the amount of tokens to lock and click "Secure Tokens."
+5. **File Upload:**
+   - Enter the file name & size and click "add file"
 
-6. **Unlock Tokens:**
-   - Enter the amount of tokens to unlock and click "Release Token."
+6. **Remove Uploaded File:**
+   - click "Remove File"
 
 
 ## Setup and Deployment
