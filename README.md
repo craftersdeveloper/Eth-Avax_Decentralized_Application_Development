@@ -1,6 +1,6 @@
 ## Introduction To Decentralized Application 
 
-This project consists of a smart contract named `Assessment` written in Solidity and a frontend interface built using React.js. The smart contract allows users to manage funds by depositing, withdrawing, and locking tokens. The contract also includes ownership transfer functionality.
+This project consists of a smart contract named `Assessment` written in Solidity and a frontend interface built using React.js. The smart contract allows users to manage funds by depositing, withdrawing, and File Upload. The contract also includes ownership transfer functionality.
 
 ## Smart Contract
 
