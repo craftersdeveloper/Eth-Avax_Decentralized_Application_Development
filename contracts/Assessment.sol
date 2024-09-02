@@ -4,16 +4,27 @@ pragma solidity ^0.8.9;
 
 contract Assessment {
 
+    // State Variable
+
     address payable public owner;
     uint256 public balance;
-    
-    mapping(address => uint256) public lockedTokens;
 
+    // File Info Struct
+
+    struct File {
+        string name;
+        uint256 size;
+    }
+    
+    mapping(address => File[]) public files;
+    
+    // events 
+    
     event Deposit(uint256 amount);
     event Withdraw(uint256 amount);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-    event TokensLocked(address indexed to, uint256 amount);
-    event TokensUnlocked(address indexed to, uint256 amount);
+    event FileAdded(address indexed owner, string name, uint256 size);
+    event FileRemoved(address indexed owner, string name);
 
     constructor(uint256 initBalance) {
         owner = payable(msg.sender);
@@ -41,12 +52,7 @@ contract Assessment {
         emit Withdraw(_withdrawAmount);
     }
 
-    function isOwner(address _address) public view returns (bool) {
-        return _address == owner;
-    }
-
     function transferOwnership(address payable _newOwner) public {
-    
         require(msg.sender == owner, "not owner of this contract");
         require(_newOwner != address(0), "Invalid new owner address");
         address payable _previousOwner = owner;
@@ -54,17 +60,25 @@ contract Assessment {
         emit OwnershipTransferred(_previousOwner, _newOwner);
     }
 
-    function lockTokens(uint256 _amount) public {
-        require(balance >= _amount, "Payment Failed (Due To Low Balance)");
-        lockedTokens[msg.sender] += _amount;
-        balance -= _amount;
-        emit TokensLocked(msg.sender, _amount);
+    // File management functions
+
+    function addFile(string memory _name, uint256 _size) public {
+        File memory newFile = File(_name, _size);
+        files[msg.sender].push(newFile);
+        emit FileAdded(msg.sender, _name, _size);
     }
 
-    function unlockTokens(uint256 _amount) public {
-        require(lockedTokens[msg.sender] >= _amount, "Payment Failed (Due To Low Balance)");
-        lockedTokens[msg.sender] -= _amount;
-        balance += _amount;
-        emit TokensUnlocked(msg.sender, _amount);
+    function removeFile(uint256 index) public {
+        require(index < files[msg.sender].length, "Invalid file index");
+        File memory file = files[msg.sender][index];
+        for (uint256 i = index; i < files[msg.sender].length - 1; i++) {
+            files[msg.sender][i] = files[msg.sender][i + 1];
+        }
+        files[msg.sender].pop();
+        emit FileRemoved(msg.sender, file.name);
+    }
+
+    function getFiles() public view returns (File[] memory) {
+        return files[msg.sender];
     }
 }
